@@ -8,4 +8,6 @@ Group Name: **No-preserve-root**
 Main Participant Name: **Greg**
 
 Team Participant Names: 
-risusan87, amin882, deand94
+- risusan87,
+- amin882,
+- deand94

@@ -4,8 +4,8 @@ from django.db import models
 
 
 class Prompt(models.Model):
-    name = models.CharField(unique=True, null=False)
-    description = models.CharField()
+    name = models.CharField(max_length=255, unique=True, null=False)
+    description = models.CharField(max_length=255)
     score = models.IntegerField(default=0, null=False)
 
     category = models.ForeignKey("Category", on_delete=models.CASCADE)
@@ -18,8 +18,8 @@ class Prompt(models.Model):
 
 
 class Category(models.Model):
-    name = models.CharField(unique=True, null=False)
-    description = models.CharField()
+    name = models.CharField(max_length=255, unique=True, null=False)
+    description = models.CharField(max_length=255)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

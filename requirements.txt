@@ -1,0 +1,11 @@
+django-filter==25.1
+djangorestframework_simplejwt==5.5.0
+grpcio-status==1.71.0
+langchain==0.3.25
+langchain-google-genai==2.0.9
+langchain-openai==0.3.19
+Markdown==3.8
+mysqlclient==2.2.7
+pip==25.0.1
+python-dotenv==1.1.0
+streamlit==1.45.1

@@ -6,10 +6,10 @@ from nopreserveroot.models import Category, Prompt
 class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
-        exclude = ["created_at"]
+        exclude = ["updated_at"]
 
 
 class PromptSerializer(ModelSerializer):
     class Meta:
         model = Prompt
-        exclude = ["created_at"]
+        exclude = ["updated_at"]

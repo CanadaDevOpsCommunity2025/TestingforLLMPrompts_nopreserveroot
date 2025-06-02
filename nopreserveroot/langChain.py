@@ -1,76 +1,142 @@
-# langchain_skeleton_categorized.py
-
 import random
+import yaml
 import json
 import datetime
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import OpenAI
+import pandas as pd
+import os
+from dotenv import load_dotenv
 
-# 1️⃣ Predefined system prompts
-prompt_templates = {
-    "A": PromptTemplate.from_template(
-        "You are a polite customer support agent. Provide a concise answer to: {user_input}"
-    ),
-    "B": PromptTemplate.from_template(
-        "You are a friendly assistant. Provide a detailed and supportive response to: {user_input}"
-    ),
-    "C": PromptTemplate.from_template(
-        "You are a concise technical assistant. Provide a brief and direct answer to: {user_input}"
-    )
-}
+# Load from .env file if available
+load_dotenv()
 
-# 2️⃣ Simple intent classifier
+# Updated imports to avoid warnings
+from langchain.chains import LLMChain
+from langchain_core.prompts import PromptTemplate
+from langchain_community.llms import OpenAI
+
+# Debug: show working dir
+print("Current working directory:", os.getcwd())
+
+# Check the API key
+if "OPENAI_API_KEY" not in os.environ:
+    print("OPENAI_API_KEY is not set! Set it in .env or environment.")
+    exit(1)
+
+# Load prompts from YAML
+def load_prompts_by_category(filepath="prompts.yaml"):
+    if not os.path.isfile(filepath):
+        print(f" File not found: {filepath}")
+        exit(1)
+    with open(filepath, "r") as f:
+        data = yaml.safe_load(f)
+    return data["prompts_by_category"]
+
+# Setup LangChain chains
+def create_chains_by_category(prompts_by_category):
+    llm = OpenAI(temperature=0.7)
+    chains = {}
+    for category, prompts in prompts_by_category.items():
+        chains[category] = {}
+        for variant_key, prompt_info in prompts.items():
+            template = PromptTemplate.from_template(prompt_info["template"])
+            chains[category][variant_key] = {
+                "description": prompt_info["description"],
+                "chain": LLMChain(prompt=template, llm=llm)
+            }
+    return chains
+
+# Intent classification
 def classify_intent(user_input: str) -> str:
-    user_input_lower = user_input.lower()
-    if "return" in user_input_lower or "refund" in user_input_lower:
-        return "returns"
-    elif "price" in user_input_lower or "specs" in user_input_lower:
-        return "product_info"
-    else:
+    # Use the LLM to classify user input dynamically
+    # We'll prompt the LLM to choose one of the predefined categories
+    classification_prompt = (
+        "You are an intent classification assistant.\n"
+        "Classify the following user query into one of these categories:\n"
+        "- returns\n"
+        "- product_info\n"
+        "- general\n"
+        "Respond only with the category name (no explanation).\n\n"
+        f"User query: \"{user_input}\"\n"
+        "Category:"
+    )
+
+    # Use a dedicated OpenAI instance for classification if you want (or reuse the same)
+    classifier_llm = OpenAI(temperature=0)  # More deterministic for classification
+    category = classifier_llm.invoke(classification_prompt).strip().lower()
+
+    # Validate that the category is one of the expected ones (fallback to general)
+    if category not in {"returns", "product_info", "general"}:
+        print(f"Unexpected category from LLM: {category}, defaulting to 'general'")
         return "general"
 
-# 3️⃣ Map intents to allowed prompts
-intent_to_prompts = {
-    "returns": ["A", "C"],
-    "product_info": ["B"],
-    "general": ["A", "B", "C"]
-}
+    print(f" LLM classified intent as: {category}")
+    return category
 
-# 4️⃣ Initialize LangChain LLM
-llm = OpenAI(temperature=0.7)
-chains = {key: LLMChain(prompt=prompt, llm=llm) for key, prompt in prompt_templates.items()}
 
-# 5️⃣ Core function to handle user input
-def handle_user_request(user_id: int, user_input: str):
-    # Classify user intent
-    intent = classify_intent(user_input)
-    valid_prompts = intent_to_prompts[intent]
+# Handle user request
+def handle_user_request(user_id: int, user_input: str, chains_by_category):
+    # Classify intent
+    intent_category = classify_intent(user_input)
+    category_chains = chains_by_category.get(intent_category)
 
-    # Pick a prompt within the category (can also rotate for even testing)
-    prompt_key = random.choice(valid_prompts)
-    chain = chains[prompt_key]
+    # Generate responses for all prompt variants (A/B)
+    variant_responses = {}
+    for prompt_key, chain_info in category_chains.items():
+        response = chain_info["chain"].run({"user_input": user_input})
+        variant_responses[prompt_key] = {
+            "response": response,
+            "description": chain_info["description"]
+        }
 
-    # Generate LLM response
-    response = chain.run({"user_input": user_input})
+    # Let LLM compare and decide the best one
+    comparison_prompt = (
+        f"You are an evaluation assistant.\n"
+        f"Given the user's query: \"{user_input}\"\n\n"
+        f"Here are two response options:\n"
+        f"A ({category_chains['A']['description']}): {variant_responses['A']['response']}\n"
+        f"B ({category_chains['B']['description']}): {variant_responses['B']['response']}\n\n"
+        f"Choose the best response (A or B) and respond with only the letter (no explanation)."
+    )
 
-    # Log results for later analysis
+    evaluator_llm = OpenAI(temperature=0)
+    best_option = evaluator_llm.invoke(comparison_prompt).strip().upper()
+
+    # Validate best option (fallback to A)
+    if best_option not in {"A", "B"}:
+        print(f"⚠️ Unexpected evaluator response: {best_option}, defaulting to A")
+        best_option = "A"
+
+    # Prepare log
     log_entry = {
         "timestamp": str(datetime.datetime.utcnow()),
         "user_id": user_id,
         "user_input": user_input,
-        "intent": intent,
-        "prompt_variant": prompt_key,
-        "llm_response": response
+        "intent_category": intent_category,
+        "chosen_variant": best_option,
+        "prompt_A": variant_responses['A'],
+        "prompt_B": variant_responses['B']
     }
 
-    with open("logs.jsonl", "a") as f:
-        f.write(json.dumps(log_entry) + "\n")
+    log_df = pd.DataFrame([log_entry])
+    log_df.to_csv("logs.csv", mode="a", header=not os.path.isfile("logs.csv"), index=False)
 
-    return response
+    # Return best response
+    best_response = variant_responses[best_option]["response"]
+    print(f"\n✅ Best response selected by LLM: {best_option}")
+    return best_response, log_entry
 
-# 6️⃣ Example usage
+
+# Example usage
 if __name__ == "__main__":
-    user_id = 42
-    user_input = "I want to return a product, can you help?"
-    response = handle_user_request(user_id, user_input)
-    print("\nGenerated LLM Response:\n", response)
+    prompts_by_category = load_prompts_by_category()
+    chains_by_category = create_chains_by_category(prompts_by_category)
+
+    user_id = 101
+
+    # Let the user enter their query dynamically
+    user_input = input("\nPlease enter your query:\n> ").strip()
+
+    response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
+
+    print("\n✅ Generated LLM Response:\n", response)
+    print("\n📄 Log Entry:\n", json.dumps(log_entry, indent=2))

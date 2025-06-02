@@ -1,13 +1,27 @@
-# TestingforLLMPrompts_nopreserveroot
+# rm -rf / --no-preserve-root
 
+## Requirements
 
-Project Name: **Testing for LLM Prompts**
+- Python 3.12
+- venv
 
-Group Name: **No-preserve-root**
+## Installation
 
-Main Participant Name: **Greg**
+### Clone the repository
 
-Team Participant Names: 
-- Ryoma,
-- Amin,
-- Dean
+```bash
+git clone git@github.com:Gregami67/TestingforLLMPrompts_nopreserveroot.git
+```
+
+### Setup environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### Start app
+
+```bash
+python manage.py runserver
+```

@@ -93,6 +93,3 @@ jobs:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }}
         wait-for-service-stability: true
-
-    - name: Run Django management command
-      run: docker run --rm ${{ steps.build-image.outputs.image }} python manage.py runserver

@@ -1,25 +1,50 @@
-# langchain_skeleton_categorized.py
-
 import random
+import yaml
 import json
 import datetime
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import OpenAI
+import pandas as pd
+import os
 
-# 1️⃣ Predefined system prompts
-prompt_templates = {
-    "A": PromptTemplate.from_template(
-        "You are a polite customer support agent. Provide a concise answer to: {user_input}"
-    ),
-    "B": PromptTemplate.from_template(
-        "You are a friendly assistant. Provide a detailed and supportive response to: {user_input}"
-    ),
-    "C": PromptTemplate.from_template(
-        "You are a concise technical assistant. Provide a brief and direct answer to: {user_input}"
+from langchain.chains import LLMChain
+from langchain_core.prompts import PromptTemplate
+from langchain_community.llms import OpenAI
+
+# Check that the API key is set
+if "OPENAI_API_KEY" not in os.environ:
+    print("The environment variable 'OPENAI_API_KEY' is not set!")
+    print("Please set it (Windows example): setx OPENAI_API_KEY \"sk-YourKeyHere\"")
+    exit(1)
+
+# Load prompts from YAML (now structured by category!)
+def load_prompts_by_category(filepath="prompts.yaml"):
+    if not os.path.isfile(filepath):
+        print(f"File not found: {filepath}")
+        print("Please make sure 'prompts.yaml' is in the same directory as this script.")
+        exit(1)
+
+    with open(filepath, "r") as f:
+        data = yaml.safe_load(f)
+    return data["prompts_by_category"]
+
+# Set up LangChain chains for each prompt variant in each category
+def create_chains_by_category(prompts_by_category):
+    # Initialize the OpenAI LLM (it will read the key from the environment)
+    llm = OpenAI(
+        temperature=0.7,
     )
-}
 
-# 2️⃣ Simple intent classifier
+    chains = {}
+    for category, prompts in prompts_by_category.items():
+        chains[category] = {}
+        for variant_key, prompt_info in prompts.items():
+            template = PromptTemplate.from_template(prompt_info["template"])
+            chains[category][variant_key] = {
+                "description": prompt_info["description"],
+                "chain": LLMChain(prompt=template, llm=llm)
+            }
+    return chains
+
+# A simple intent classifier
 def classify_intent(user_input: str) -> str:
     user_input_lower = user_input.lower()
     if "return" in user_input_lower or "refund" in user_input_lower:
@@ -29,48 +54,49 @@ def classify_intent(user_input: str) -> str:
     else:
         return "general"
 
-# 3️⃣ Map intents to allowed prompts
-intent_to_prompts = {
-    "returns": ["A", "C"],
-    "product_info": ["B"],
-    "general": ["A", "B", "C"]
-}
+# Handle a real user request
+def handle_user_request(user_id: int, user_input: str, chains_by_category):
+    # Classify intent to choose category
+    intent_category = classify_intent(user_input)
+    print(f"User intent classified as: {intent_category}")
 
-# 4️⃣ Initialize LangChain LLM
-llm = OpenAI(temperature=0.7)
-chains = {key: LLMChain(prompt=prompt, llm=llm) for key, prompt in prompt_templates.items()}
+    # Get available prompt variants for the category
+    category_chains = chains_by_category.get(intent_category)
+    if not category_chains:
+        print(f"No prompts defined for intent category: {intent_category}")
+        exit(1)
 
-# 5️⃣ Core function to handle user input
-def handle_user_request(user_id: int, user_input: str):
-    # Classify user intent
-    intent = classify_intent(user_input)
-    valid_prompts = intent_to_prompts[intent]
-
-    # Pick a prompt within the category (can also rotate for even testing)
-    prompt_key = random.choice(valid_prompts)
-    chain = chains[prompt_key]
+    # Randomly choose a variant
+    prompt_key = random.choice(list(category_chains.keys()))
+    chain_info = category_chains[prompt_key]
 
     # Generate LLM response
-    response = chain.run({"user_input": user_input})
+    response = chain_info["chain"].run({"user_input": user_input})
 
-    # Log results for later analysis
+    # Log to CSV
     log_entry = {
         "timestamp": str(datetime.datetime.utcnow()),
         "user_id": user_id,
         "user_input": user_input,
-        "intent": intent,
+        "intent_category": intent_category,
         "prompt_variant": prompt_key,
+        "prompt_description": chain_info["description"],
         "llm_response": response
     }
 
-    with open("logs.jsonl", "a") as f:
-        f.write(json.dumps(log_entry) + "\n")
+    log_df = pd.DataFrame([log_entry])
+    log_df.to_csv("logs.csv", mode="a", header=not os.path.isfile("logs.csv"), index=False)
 
-    return response
+    return response, log_entry
 
-# 6️⃣ Example usage
+# Example usage
 if __name__ == "__main__":
-    user_id = 42
-    user_input = "I want to return a product, can you help?"
-    response = handle_user_request(user_id, user_input)
-    print("\nGenerated LLM Response:\n", response)
+    prompts_by_category = load_prompts_by_category()
+    chains_by_category = create_chains_by_category(prompts_by_category)
+
+    user_id = 101
+    user_input = "I’d like to return a defective product."
+    response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
+
+    print("\n✅ Generated LLM Response:\n", response)
+    print("\n📄 Log Entry:\n", json.dumps(log_entry, indent=2))

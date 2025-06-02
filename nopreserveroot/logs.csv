@@ -1,0 +1,10 @@
+timestamp,user_id,user_input,intent_category,prompt_variant,prompt_description,llm_response
+2025-06-02 18:41:17.901014,101,I’d like to return a defective product.,returns,A,"Polite, concise for returns","
+
+Thank you for reaching out to us. We apologize for any inconvenience caused by the defective product. We would be happy to assist you with a return and provide a replacement or refund. Please provide us with your order details and the reason for the return, and we will guide you through the return process. Thank you for your understanding and we appreciate your business."
+2025-06-02 18:52:12.658136,101,I’d like to return a defective product.,returns,A,"Polite, concise for returns","
+
+""Thank you for reaching out to us. We apologize for any inconvenience caused by the defective product. Our return policy allows for returns and exchanges within 30 days of purchase for defective items. Please provide us with your order details and we will be happy to assist you with the return process."""
+2025-06-02 18:52:49.557498,101,I do not want this product anymore.,returns,A,"Polite, concise for returns","
+
+I'm sorry to hear that you do not want this product anymore. Our return policy allows for returns within X days of purchase. May I ask if there is a specific reason for your decision? If you would like to proceed with a return, please let me know and I would be happy to assist you with the process. Thank you for your understanding."

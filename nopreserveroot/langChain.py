@@ -47,13 +47,31 @@ def create_chains_by_category(prompts_by_category):
 
 # Intent classification
 def classify_intent(user_input: str) -> str:
-    user_input_lower = user_input.lower()
-    if "return" in user_input_lower or "refund" in user_input_lower:
-        return "returns"
-    elif "price" in user_input_lower or "specs" in user_input_lower:
-        return "product_info"
-    else:
+    # Use the LLM to classify user input dynamically
+    # We'll prompt the LLM to choose one of the predefined categories
+    classification_prompt = (
+        "You are an intent classification assistant.\n"
+        "Classify the following user query into one of these categories:\n"
+        "- returns\n"
+        "- product_info\n"
+        "- general\n"
+        "Respond only with the category name (no explanation).\n\n"
+        f"User query: \"{user_input}\"\n"
+        "Category:"
+    )
+
+    # Use a dedicated OpenAI instance for classification if you want (or reuse the same)
+    classifier_llm = OpenAI(temperature=0)  # More deterministic for classification
+    category = classifier_llm.invoke(classification_prompt).strip().lower()
+
+    # Validate that the category is one of the expected ones (fallback to general)
+    if category not in {"returns", "product_info", "general"}:
+        print(f"Unexpected category from LLM: {category}, defaulting to 'general'")
         return "general"
+
+    print(f" LLM classified intent as: {category}")
+    return category
+
 
 # Handle user request
 def handle_user_request(user_id: int, user_input: str, chains_by_category):
@@ -81,8 +99,8 @@ if __name__ == "__main__":
     chains_by_category = create_chains_by_category(prompts_by_category)
 
     user_id = 101
-    user_input = "I’d like to return a defective product."
+    user_input = "I do not want this product anymore."
     response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
 
-    print("\n✅ Generated LLM Response:\n", response)
-    print("\n📄 Log Entry:\n", json.dumps(log_entry, indent=2))
+    print("\n Generated LLM Response:\n", response)
+    print("\n Log Entry:\n", json.dumps(log_entry, indent=2))

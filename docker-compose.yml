@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: ./django_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared-data:/shared
+    depends_on:
+      - streamlit
+
+  streamlit:
+    build:
+      context: ./streamlit_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - shared-data:/shared
+
+volumes:
+  shared-data:

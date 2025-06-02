@@ -26,6 +26,12 @@ source .venv/bin/activate
 python manage.py migrate
 ```
 
+### Create super user
+
+```bash
+python manage.py createsuperuser
+```
+
 ### Start app
 
 ```bash

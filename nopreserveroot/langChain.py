@@ -75,23 +75,56 @@ def classify_intent(user_input: str) -> str:
 
 # Handle user request
 def handle_user_request(user_id: int, user_input: str, chains_by_category):
+    # Classify intent
     intent_category = classify_intent(user_input)
     category_chains = chains_by_category.get(intent_category)
-    prompt_key = random.choice(list(category_chains.keys()))
-    chain_info = category_chains[prompt_key]
-    response = chain_info["chain"].run({"user_input": user_input})
+
+    # Generate responses for all prompt variants (A/B)
+    variant_responses = {}
+    for prompt_key, chain_info in category_chains.items():
+        response = chain_info["chain"].run({"user_input": user_input})
+        variant_responses[prompt_key] = {
+            "response": response,
+            "description": chain_info["description"]
+        }
+
+    # Let LLM compare and decide the best one
+    comparison_prompt = (
+        f"You are an evaluation assistant.\n"
+        f"Given the user's query: \"{user_input}\"\n\n"
+        f"Here are two response options:\n"
+        f"A ({category_chains['A']['description']}): {variant_responses['A']['response']}\n"
+        f"B ({category_chains['B']['description']}): {variant_responses['B']['response']}\n\n"
+        f"Choose the best response (A or B) and respond with only the letter (no explanation)."
+    )
+
+    evaluator_llm = OpenAI(temperature=0)
+    best_option = evaluator_llm.invoke(comparison_prompt).strip().upper()
+
+    # Validate best option (fallback to A)
+    if best_option not in {"A", "B"}:
+        print(f"⚠️ Unexpected evaluator response: {best_option}, defaulting to A")
+        best_option = "A"
+
+    # Prepare log
     log_entry = {
         "timestamp": str(datetime.datetime.utcnow()),
         "user_id": user_id,
         "user_input": user_input,
         "intent_category": intent_category,
-        "prompt_variant": prompt_key,
-        "prompt_description": chain_info["description"],
-        "llm_response": response
+        "chosen_variant": best_option,
+        "prompt_A": variant_responses['A'],
+        "prompt_B": variant_responses['B']
     }
+
     log_df = pd.DataFrame([log_entry])
     log_df.to_csv("logs.csv", mode="a", header=not os.path.isfile("logs.csv"), index=False)
-    return response, log_entry
+
+    # Return best response
+    best_response = variant_responses[best_option]["response"]
+    print(f"\n✅ Best response selected by LLM: {best_option}")
+    return best_response, log_entry
+
 
 # Example usage
 if __name__ == "__main__":
@@ -99,8 +132,11 @@ if __name__ == "__main__":
     chains_by_category = create_chains_by_category(prompts_by_category)
 
     user_id = 101
-    user_input = "I do not want this product anymore."
+
+    # Let the user enter their query dynamically
+    user_input = input("\nPlease enter your query:\n> ").strip()
+
     response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
 
-    print("\n Generated LLM Response:\n", response)
-    print("\n Log Entry:\n", json.dumps(log_entry, indent=2))
+    print("\n✅ Generated LLM Response:\n", response)
+    print("\n📄 Log Entry:\n", json.dumps(log_entry, indent=2))

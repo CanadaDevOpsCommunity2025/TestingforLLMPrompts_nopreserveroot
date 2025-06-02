@@ -4,7 +4,7 @@ from django.db import models
 class Prompt(models.Model):
     name = models.CharField(unique=True, null=False)
     description = models.CharField()
-    score = models.PositiveIntegerField(default=0, null=False)
+    score = models.IntegerField(default=0, null=False)
 
     category = models.ForeignKey("Category", on_delete=models.CASCADE)
 

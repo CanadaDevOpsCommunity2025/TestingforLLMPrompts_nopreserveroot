@@ -1,3 +1,9 @@
 from django.db import models
+from django.contrib.auth.models import AbstractBaseUser
 
-# Create your models here.
+
+class prompt(models.Model):
+    name = models.CharField(unique=True)
+
+    def __str__(self):
+        return str(self.name)

@@ -88,10 +88,10 @@ DATABASES = {
         # "ENGINE": "django.db.backends.sqlite3",
         # "NAME": BASE_DIR / "db.sqlite3",
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "database-1",
+        "NAME": "mydatabase",
         "USER": "root",
         "PASSWORD": "c1wkm+719rd!n4",
-        "HOST": "database-1.copqgq8ou71w.us-east-1.rds.amazonaws.com",
+        "HOST": "database-2.copqgq8ou71w.us-east-1.rds.amazonaws.com",
         "PORT": "3306",
     }
 }

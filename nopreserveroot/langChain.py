@@ -4,35 +4,36 @@ import json
 import datetime
 import pandas as pd
 import os
+from dotenv import load_dotenv
 
+# Load from .env file if available
+load_dotenv()
+
+# Updated imports to avoid warnings
 from langchain.chains import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain_community.llms import OpenAI
 
-# Check that the API key is set
+# Debug: show working dir
+print("Current working directory:", os.getcwd())
+
+# Check the API key
 if "OPENAI_API_KEY" not in os.environ:
-    print("The environment variable 'OPENAI_API_KEY' is not set!")
-    print("Please set it (Windows example): setx OPENAI_API_KEY \"sk-YourKeyHere\"")
+    print("OPENAI_API_KEY is not set! Set it in .env or environment.")
     exit(1)
 
-# Load prompts from YAML (now structured by category!)
+# Load prompts from YAML
 def load_prompts_by_category(filepath="prompts.yaml"):
     if not os.path.isfile(filepath):
-        print(f"File not found: {filepath}")
-        print("Please make sure 'prompts.yaml' is in the same directory as this script.")
+        print(f" File not found: {filepath}")
         exit(1)
-
     with open(filepath, "r") as f:
         data = yaml.safe_load(f)
     return data["prompts_by_category"]
 
-# Set up LangChain chains for each prompt variant in each category
+# Setup LangChain chains
 def create_chains_by_category(prompts_by_category):
-    # Initialize the OpenAI LLM (it will read the key from the environment)
-    llm = OpenAI(
-        temperature=0.7,
-    )
-
+    llm = OpenAI(temperature=0.7)
     chains = {}
     for category, prompts in prompts_by_category.items():
         chains[category] = {}
@@ -44,7 +45,7 @@ def create_chains_by_category(prompts_by_category):
             }
     return chains
 
-# A simple intent classifier
+# Intent classification
 def classify_intent(user_input: str) -> str:
     user_input_lower = user_input.lower()
     if "return" in user_input_lower or "refund" in user_input_lower:
@@ -54,26 +55,13 @@ def classify_intent(user_input: str) -> str:
     else:
         return "general"
 
-# Handle a real user request
+# Handle user request
 def handle_user_request(user_id: int, user_input: str, chains_by_category):
-    # Classify intent to choose category
     intent_category = classify_intent(user_input)
-    print(f"User intent classified as: {intent_category}")
-
-    # Get available prompt variants for the category
     category_chains = chains_by_category.get(intent_category)
-    if not category_chains:
-        print(f"No prompts defined for intent category: {intent_category}")
-        exit(1)
-
-    # Randomly choose a variant
     prompt_key = random.choice(list(category_chains.keys()))
     chain_info = category_chains[prompt_key]
-
-    # Generate LLM response
     response = chain_info["chain"].run({"user_input": user_input})
-
-    # Log to CSV
     log_entry = {
         "timestamp": str(datetime.datetime.utcnow()),
         "user_id": user_id,
@@ -83,10 +71,8 @@ def handle_user_request(user_id: int, user_input: str, chains_by_category):
         "prompt_description": chain_info["description"],
         "llm_response": response
     }
-
     log_df = pd.DataFrame([log_entry])
     log_df.to_csv("logs.csv", mode="a", header=not os.path.isfile("logs.csv"), index=False)
-
     return response, log_entry
 
 # Example usage

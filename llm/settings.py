@@ -38,10 +38,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt",
     "nopreserveroot.apps.NopreserverootConfig",
 ]
 
 AUTH_USER_MODEL = "nopreserveroot.User"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    )
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -88,10 +95,10 @@ DATABASES = {
         # "ENGINE": "django.db.backends.sqlite3",
         # "NAME": BASE_DIR / "db.sqlite3",
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "mydatabase",
+        "NAME": "itismedb",
         "USER": "root",
         "PASSWORD": "c1wkm+719rd!n4",
-        "HOST": "database-2.copqgq8ou71w.us-east-1.rds.amazonaws.com",
+        "HOST": "database-3.copqgq8ou71w.us-east-1.rds.amazonaws.com",
         "PORT": "3306",
     }
 }

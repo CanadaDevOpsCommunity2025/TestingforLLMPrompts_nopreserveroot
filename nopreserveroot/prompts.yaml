@@ -1,0 +1,10 @@
+prompts:
+  A:
+    description: "Polite, concise"
+    template: "You are a professional customer support agent. Provide a concise and polite answer to: {user_input}"
+  B:
+    description: "Friendly, thorough"
+    template: "You are a friendly assistant. Provide a detailed and supportive answer to: {user_input}"
+  C:
+    description: "Direct, blunt"
+    template: "You are a concise agent. Provide a brief and direct response to: {user_input}"

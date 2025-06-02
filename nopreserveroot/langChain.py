@@ -103,7 +103,7 @@ def handle_user_request(user_id: int, user_input: str, chains_by_category):
 
     # Validate best option (fallback to A)
     if best_option not in {"A", "B"}:
-        print(f"⚠️ Unexpected evaluator response: {best_option}, defaulting to A")
+        print(f"Unexpected evaluator response: {best_option}, defaulting to A")
         best_option = "A"
 
     # Prepare log
@@ -122,21 +122,56 @@ def handle_user_request(user_id: int, user_input: str, chains_by_category):
 
     # Return best response
     best_response = variant_responses[best_option]["response"]
-    print(f"\n✅ Best response selected by LLM: {best_option}")
+    print(f"\n Best response selected by LLM: {best_option}")
     return best_response, log_entry
 
+def add_new_prompt_to_category(filepath="prompts.yaml"):
+    with open(filepath, "r") as f:
+        data = yaml.safe_load(f)
 
-# Example usage
+    categories = list(data["prompts_by_category"].keys())
+    print("\nAvailable categories:")
+    for idx, cat in enumerate(categories, start=1):
+        print(f"{idx}. {cat}")
+
+    cat_choice = int(input("Select a category by number to add a new prompt to:\n> ")) - 1
+    category = categories[cat_choice]
+
+    description = input("Enter a short description for the new prompt:\n> ").strip()
+    template = input("Enter the actual prompt template (use {user_input} where needed):\n> ").strip()
+
+    # Determine the next variant key (e.g., C, D, etc.)
+    existing_variants = data["prompts_by_category"][category].keys()
+    next_variant = chr(ord(max(existing_variants)) + 1)
+
+    data["prompts_by_category"][category][next_variant] = {
+        "description": description,
+        "template": template
+    }
+
+    with open(filepath, "w") as f:
+        yaml.dump(data, f, sort_keys=False)
+
+    print(f" New prompt added under category '{category}' with key '{next_variant}'.")
+
+# usage
 if __name__ == "__main__":
     prompts_by_category = load_prompts_by_category()
     chains_by_category = create_chains_by_category(prompts_by_category)
 
-    user_id = 101
+    print("\nWhat would you like to do?")
+    print("1. Use existing prompts for your query")
+    print("2. Add a new prompt to a category")
 
-    # Let the user enter their query dynamically
-    user_input = input("\nPlease enter your query:\n> ").strip()
+    choice = input("\nSelect an option (1 or 2):\n> ").strip()
 
-    response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
-
-    print("\n✅ Generated LLM Response:\n", response)
-    print("\n📄 Log Entry:\n", json.dumps(log_entry, indent=2))
+    if choice == "1":
+        user_id = 101
+        user_input = input("\nPlease enter your query:\n> ").strip()
+        response, log_entry = handle_user_request(user_id, user_input, chains_by_category)
+        print("\n Generated LLM Response:\n", response)
+        print("\n Log Entry:\n", json.dumps(log_entry, indent=2))
+    elif choice == "2":
+        add_new_prompt_to_category()
+    else:
+        print(" Invalid choice! Exiting.")
